@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { UserButton } from '@clerk/nextjs';
 import {
   LayoutDashboard,
   Users,
@@ -11,11 +10,12 @@ import {
   Settings,
   Plus,
   ChevronDown,
+  User,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navigation = [
-  { name: 'Overview', href: '/', icon: LayoutDashboard },
+  { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Calendar', href: '/calendar', icon: Calendar },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
@@ -87,11 +87,14 @@ export default function DashboardLayout({
           {/* User */}
           <div className="border-t border-gray-200 p-4">
             <div className="flex items-center gap-3">
-              <UserButton afterSignOutUrl="/login" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200">
+                <User className="h-4 w-4 text-gray-600" />
+              </div>
               <div className="flex-1 overflow-hidden">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  Account
+                  Admin
                 </p>
+                <p className="text-xs text-gray-500">Demo Mode</p>
               </div>
             </div>
           </div>
@@ -114,7 +117,9 @@ export default function DashboardLayout({
             >
               <Plus className="h-4 w-4" />
             </Link>
-            <UserButton afterSignOutUrl="/login" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200">
+              <User className="h-4 w-4 text-gray-600" />
+            </div>
           </div>
         </header>
         <main className="flex-1 overflow-auto p-4">{children}</main>

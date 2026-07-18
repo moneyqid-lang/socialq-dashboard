@@ -1,43 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get orgs where user is a member
-    const { data: memberships, error: membershipError } = await supabaseAdmin
-      .from('team_members')
-      .select('org_id')
-      .eq('clerk_user_id', userId);
-
-    if (membershipError) {
-      throw new Error(membershipError.message);
-    }
-
-    const orgIds = memberships?.map((m) => m.org_id) || [];
-
-    if (orgIds.length === 0) {
-      return NextResponse.json([]);
-    }
-
-    // Fetch organizations with related data
-    const { data: orgs, error: orgsError } = await supabaseAdmin
+    // In demo mode, fetch all orgs (no auth filtering)
+    const { data: orgs, error } = await supabase
       .from('organizations')
       .select(`
         *,
         social_accounts(platform, status),
         content_history(count)
       `)
-      .in('id', orgIds)
       .order('created_at', { ascending: false });
 
-    if (orgsError) {
-      throw new Error(orgsError.message);
+    if (error) {
+      throw new Error(error.message);
     }
 
     return NextResponse.json(orgs || []);
@@ -52,11 +29,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = await request.json();
     const { name, slug, description, target, url, tone } = body;
 
@@ -68,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if slug is unique
-    const { data: existing } = await supabaseAdmin
+    const { data: existing } = await supabase
       .from('organizations')
       .select('id')
       .eq('slug', slug)
@@ -82,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create organization
-    const { data: org, error: orgError } = await supabaseAdmin
+    const { data: org, error: orgError } = await supabase
       .from('organizations')
       .insert({
         name,
@@ -96,23 +68,8 @@ export async function POST(request: NextRequest) {
       throw new Error(orgError.message);
     }
 
-    // Add user as owner
-    const { error: memberError } = await supabaseAdmin
-      .from('team_members')
-      .insert({
-        org_id: org.id,
-        clerk_user_id: userId,
-        role: 'owner',
-      });
-
-    if (memberError) {
-      // Rollback org creation
-      await supabaseAdmin.from('organizations').delete().eq('id', org.id);
-      throw new Error(memberError.message);
-    }
-
     // Create brand profile
-    const { error: brandError } = await supabaseAdmin
+    const { error: brandError } = await supabase
       .from('brand_profiles')
       .insert({
         org_id: org.id,
@@ -125,7 +82,6 @@ export async function POST(request: NextRequest) {
 
     if (brandError) {
       console.error('Error creating brand profile:', brandError);
-      // Don't rollback - brand can be created later
     }
 
     return NextResponse.json(org, { status: 201 });
